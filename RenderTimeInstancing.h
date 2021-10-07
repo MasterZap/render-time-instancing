@@ -55,7 +55,7 @@ class Mtl;
 
     if (instancer)
     {	
-        //by UpdateInstanceData
+        //UpdateInstanceData
 
         Interval valid = FOREVER;
         instancer->UpdateInstanceData(t, valid, _T("myPlugin"));
@@ -322,11 +322,11 @@ namespace RenderTimeInstancing
         // For convenicence - iterator
         class Iterator;
         Iterator begin() { return Iterator(this); }
-        Iterator end() { return Iterator(this, GetNumInstances()); }
+        Iterator end()   { return Iterator(this, GetNumInstances()); }
         class Iterator {
         public:
             Iterator(RenderInstanceSource *item) : m_item(item), m_i(0) {}
-            Iterator(RenderInstanceSource *funko, const size_t val) : m_item(funko), m_i(val) {}
+            Iterator(RenderInstanceSource *item, const size_t val) : m_item(item), m_i(val) {}
 
             Iterator&             operator++() { m_i++; return *this; }
             bool                  operator!=(const Iterator &iterator) { return m_i != iterator.m_i; }
@@ -385,11 +385,11 @@ namespace RenderTimeInstancing
         // For convenicence - iterator
         class Iterator;
         Iterator begin() { return Iterator(this); }
-        Iterator end() { return Iterator(this, GetNumInstanceSources()); }
+        Iterator end()   { return Iterator(this, GetNumInstanceSources()); }
         class Iterator {
         public:
             Iterator(RenderTimeInstancing *item) : m_item(item), m_i(0) {}
-            Iterator(RenderTimeInstancing *funko, const size_t val) : m_item(funko), m_i(val) {}
+            Iterator(RenderTimeInstancing *item, const size_t val) : m_item(item), m_i(val) {}
 
             Iterator&             operator++() { m_i++; return *this; }
             bool                  operator!=(const Iterator &iterator) { return m_i != iterator.m_i; }
