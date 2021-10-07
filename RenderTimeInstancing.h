@@ -24,7 +24,7 @@ OR OTHER DEALINGS IN THE SOFTWARE.
 //headers from Max SDK
 #include <object.h>
 #include <mesh.h>
-#include <array.h>
+#include <containers/array.h>
 
 #define RENDERTIME_INSTANCING_INTERFACE Interface_ID(0x442741c3, 0x2e22675c)
 
@@ -43,14 +43,14 @@ class Mtl;
 
     USAGE:
 
-    RenderTimeInstancing* inst = GetRenderTimeInstancing(baseObject);
+    RenderTimeInstancing* instancer = GetRenderTimeInstancing(baseObject);
 
-    if (inst)
+    if (instancer)
     {	
         //by UpdateInstanceData
 
         Interval valid = FOREVER;
-        inst->UpdateInstanceData(t, valid, _T("myPlugin"));
+        instancer->UpdateInstanceData(t, valid, _T("myPlugin"));
         
         //To ensure maximum data access speed, we convert our channel
         //strings into channel indices outside of the instance loop 
@@ -61,42 +61,34 @@ class Mtl;
         //A default value for missing channels will simply
         //be returned instead (0.0f, Point3::Origin, Matrix3(1))
 
-        //Note: channel names are case-sensitive
+        // Note: channel names are case-sensitive
 
-        int floatChannel1 = inst->FloatChannelToInt(_T("myFloatChannel")); 
-        int VectorChannel1 = inst->VectorChannelToInt(_T("myVectorChannel1"));
-        int VectorChannel2 = inst->VectorChannelToInt(_T("myVectorChannel2"));
-        int TMChannel1 = inst->TMChannelToInt(_T("myTMChannel"));
-        
-        int numSources = inst->GetNumInstanceSources();
+        int floatChannel1  = instancer->FloatChannelToInt(_T("myFloatChannel")); 
+        int VectorChannel1 = instancer->VectorChannelToInt(_T("myVectorChannel1"));
+        int VectorChannel2 = instancer->VectorChannelToInt(_T("myVectorChannel2"));
+        int TMChannel1     = instancer->TMChannelToInt(_T("myTMChannel"));
 
-        for (int q = 0; q < numSources; q++)
-        {
-            auto src = inst->GetRenderInstanceSource(q);
-
-            auto flags = src->GetFlags();
+        // Instancer acts as a container of sources. Loop over the sources in the instancer
+        for (auto source : instancer)
+            auto flags = source->GetFlags();
 
             if (flags & DataFlags::mesh)  { ... work with meshes .... } 
             if (flags & DataFlags::inode) { ... work with iNode .... }
 
-
             // Get what to be instanced
-            void *data = src->GetData();
+            void *data = source->GetData();
 
-
-            int numTargets = src->GetNumInstances();
-            for (int p = 0; p < numTargets; p++)
+            // A source acts as a container of targets
+            for (auto target : source )
             {
-                auto target = src->GetInstance(p);
-
                 float   f1  = target->GetCustomFloat(floatChannel1);
                 Point3  v1  = target->GetCustomVector(vectorChannel1);
                 Point3  v2  = target->GetCustomVector(vectorChannel2);
                 Matrix3 tm1 = target->GetCustomVector(TMChannel1);
 
-                // ... actually instance the object using info in "target"
+                // ... actually instance the "source" object using info in "target"
 
-
+                ... renderer specific magic goes here....
 
             }
 
@@ -105,7 +97,7 @@ class Mtl;
 
         }
         // Cleanup, if any is needed
-        inst->ReleaseInstanceData();
+        instancer->ReleaseInstanceData();
     }
     else
         ...use GetRenderMesh() instead....
@@ -114,60 +106,22 @@ class Mtl;
 namespace RenderTimeInstancing
 {
     struct InstanceUVWInfo { int channel; UVVert value; };
-    
-    enum DataFlags : unsigned int
-    {		
+
+    enum DataFlags : signed int
+    {
         none = 0,
 
-        mesh  = 1 << 0, //RenderInstanceSource::data* is Mesh*
+        mesh = 1 << 0, //RenderInstanceSource::data* is Mesh*
         inode = 1 << 1, //RenderInstanceSource::data* is INode*
-        
-        pluginMustDelete = 1 << 31, //set in RenderInstanceSource::flags if 
+
+        pluginMustDelete = 1 << 31 //set in RenderInstanceSource::flags if 
         //the calling plugin must delete data pointer after use
     };
 
 
-    
-    struct RenderInstanceSource;
-    struct RenderInstance;
 
-#if 0
-    class tyParticleObjectExt : public IParticleObjectExt
-    {
-    public:
-        /*
-        This helper function collects instances (instances that	share 
-        the same data pointer) and groups them together, along with 
-        any per-instance property overrides. It is a quick way to 
-        collect all instance instances for rendering. The arguments 
-        'moblurStart' and 'moblurEnd' should be the start and end of the 
-        desired motion blur interval, for proper instance transform retrieval. 
-        Note: this function calls UpdateInstanceData internally for all 
-        time values, so UpdateInstanceData does not need to be manually 
-        called before calls	to CollectInstances. 
-        
-        The dataFlags argument of this function takes flags related to what
-        type of instancing data the function should collect. For only Mesh*
-        instancing, pass DataFlags::mesh. For only INode* instancing, pass
-        DataFlags::inode. For both, pass (DataFlags::mesh | DataFlags::inode).
-        See comments below within the RenderInstance class for more information
-        about instance data pointers.
-        
-        The plugin argument of this function takes the name of the plugin
-        querying this interface, in lowercase letters.
-        Ex: _T("arnold"), _T("octane"), _T("redshift"), _T("vray"), etc.
-        This is a somewhat arbitrary value, but by having plugins identify
-        themselves during a query, tyFlow can internally determine if any
-        plugin-specific edge-cases need to be processed.		
-        */
-        virtual tyVector<RenderInstanceSource> CollectInstances(
-            INode* node, 
-            DataFlags dataFlags,
-            TimeValue moblurStart, 
-            TimeValue moblurEnd, 
-            TSTR plugin) = 0;
-    };
-#endif
+    class RenderInstanceSource;
+
 
     class RenderInstance
     {
@@ -175,21 +129,21 @@ namespace RenderTimeInstancing
         These functions return custom data values for each
         instance. Values are retreived using channel integers
         */
-        virtual float   GetCustomFloat (int channelInt) = 0;
+        virtual float   GetCustomFloat(int channelInt) = 0;
         virtual Point3  GetCustomVector(int channelInt) = 0;
-        virtual Matrix3 GetCustomTM    (int channelInt) = 0;
+        virtual Matrix3 GetCustomTM(int channelInt) = 0;
 
 
-// ZAP: What is this, do we need this? (Originally GetParticleExportGroups). Took it out for now
-        /*
-        This function returns per-instance export group flags
-        A return value of 0 means no flags have been set.
-        */
-//      virtual unsigned int GetExportGroups() = 0;
+        // ZAP: What is this, do we need this? (Originally GetParticleExportGroups). Took it out for now
+                /*
+                This function returns per-instance export group flags
+                A return value of 0 means no flags have been set.
+                */
+                //      virtual unsigned int GetExportGroups() = 0;
 
-        /*ID contains the unique Birth ID of source instances (i.e. Birth ID
-        of a particle, or scattered item). This value should be unique for each 
-        instance in the set. This value can be negative or zero*/
+                        /*ID contains the unique Birth ID of source instances (i.e. Birth ID
+                        of a particle, or scattered item). This value should be unique for each
+                        instance in the set. This value can be negative or zero*/
         virtual __int64 GetID();
 
         /*instanceID contains the arbitrary, user-defined instance ID of source
@@ -198,19 +152,19 @@ namespace RenderTimeInstancing
         virtual __int64 GetInstanceID();
 
 
-// ZAP: What is this, do we need this? Took it out for now
-        /*
-        This function returns per-instance instanceNode. This is a user-defined
-        render-only node which corresponds to each instance. NULL means no
-        node has been assigned.
-        */
-//      virtual INode* GetParticleInstanceNode() = 0;
+        // ZAP: What is this, do we need this? Took it out for now
+                /*
+                This function returns per-instance instanceNode. This is a user-defined
+                render-only node which corresponds to each instance. NULL means no
+                node has been assigned.
+                */
+                //      virtual INode* GetParticleInstanceNode() = 0;
 
 
-        /*
-        This function returns per-instance mesh matID overrides.
-        A return value of -1 means no override is set on the instance.
-        */
+                        /*
+                        This function returns per-instance mesh matID overrides.
+                        A return value of -1 means no override is set on the instance.
+                        */
         virtual int GetMatID() = 0;
 
         /*
@@ -220,45 +174,45 @@ namespace RenderTimeInstancing
         */
         virtual Mtl* GetMtl() = 0;
 
-// ZAP: What is this, do we need this? (GetParticleSimGroupsByIndex). Took out for now
-        /*
-        This function returns per-instance simulation group flags
-        A return value of 0 means no flags have been set.
-        */
-//      virtual unsigned int GetSimGroups() = 0;
+        // ZAP: What is this, do we need this? (GetParticleSimGroupsByIndex). Took out for now
+                /*
+                This function returns per-instance simulation group flags
+                A return value of 0 means no flags have been set.
+                */
+                //      virtual unsigned int GetSimGroups() = 0;
 
 
-        /*
-        This function returns per-instance UVW overrides for specific map
-        channels.
-        The return value is an array which contains a list of overrides
-        and the map channel whose vertices they should be assigned to. An
-        empty array means no UVW overrides have been assigned to the instance.
-        */
+                        /*
+                        This function returns per-instance UVW overrides for specific map
+                        channels.
+                        The return value is an array which contains a list of overrides
+                        and the map channel whose vertices they should be assigned to. An
+                        empty array means no UVW overrides have been assigned to the instance.
+                        */
         virtual MaxSDK::Array<InstanceUVWInfo> GetUVWsVec() = 0;
-       
+
 
         /*tms contains the instance's transform(s) spread evenly over the motion
-        blur interval (the interval specified by the arguments passed to 
-        CollectInstances), in temporal order. A tms tyVector with a single element 
-        represents a static instance. A tms tyVector with two elements contains 
-        the transforms at the start and end of the interval. A tms tyVector with 
-        three elements contains the transforms at the start, center, and end of 
+        blur interval (the interval specified by the arguments passed to
+        CollectInstances), in temporal order. A tms tyVector with a single element
+        represents a static instance. A tms tyVector with two elements contains
+        the transforms at the start and end of the interval. A tms tyVector with
+        three elements contains the transforms at the start, center, and end of
         the interval, etc. A tms tyVector with more than two elements allows
         a renderer to compute more accurate multi-sample motion blur.
-        
-        Instance velocity/spin, should those properties be required, should be 
+
+        Instance velocity/spin, should those properties be required, should be
         derived from these values (typically from the first/last entry)*/
         virtual MaxSDK::Array<Matrix3> GetTMs();
 
 
-// ZAP: Do we need these?
-//      and doesn't the spin need to be a quaternion to even work??
-// 
-        /*vel is the per-frame instance velocity of the instance. Note: this value
-        is stored for completeness, but should not be used by developers to calculate 
-        motion blur. Motion blur should be calculated using the tms tyVector instead.
-        */
+        // ZAP: Do we need these?
+        //      and doesn't the spin need to be a quaternion to even work??
+        // 
+                /*vel is the per-frame instance velocity of the instance. Note: this value
+                is stored for completeness, but should not be used by developers to calculate
+                motion blur. Motion blur should be calculated using the tms tyVector instead.
+                */
         virtual Point3 GetVelocity();
 
         /*spin is the per-frame instance spin of the instance. Note: this value
@@ -267,33 +221,33 @@ namespace RenderTimeInstancing
         */
         virtual Quat GetSpin();
     };
-        
-    struct RenderInstanceSource
-    {		
+
+    class RenderInstanceSource
+    {
         /* INFO ABOUT THE ACTUAL THING BEING INSTANCED */
 
-        /*these flags are used to define the type of data stored 
+        /*these flags are used to define the type of data stored
         in the void pointer, and any other relevant information,
         like whether the plugin must delete the pointer once it's
         finished using it.
         */
         virtual DataFlags GetFlags();
-        
-        /*the data pointer contains the relevant class that should be 
-        instanced. Currently, it is either a Mesh* or an INode*, and 
-        the flags variable can be queried to find out which class type it is. 
-        
-        The flags variable will only have one class type flag set, but may 
-        have other relevant information flagged as well, so you should not 
-        test for the class type with the equality ('==') operator, but instead 
+
+        /*the data pointer contains the relevant class that should be
+        instanced. Currently, it is either a Mesh* or an INode*, and
+        the flags variable can be queried to find out which class type it is.
+
+        The flags variable will only have one class type flag set, but may
+        have other relevant information flagged as well, so you should not
+        test for the class type with the equality ('==') operator, but instead
         bitwise AND operator ('&'). For example:
-        
+
         if (flags == DataFlags::mesh){auto mesh = (Mesh*)data;} //incorrect
         if (flags == DataFlags::inode){auto node = (INode*)data;} //incorrect
-        
+
         if (flags & DataFlags::mesh){auto mesh = (Mesh*)data;} //correct
         if (flags & DataFlags::inode){auto node = (INode*)data;} //correct
-                
+
         If the "pluginMustDelete" flag is set, you must delete this pointer
         after use. Be sure to cast to relevant class before deletion
         so the proper destructor is called.
@@ -303,11 +257,11 @@ namespace RenderTimeInstancing
         /*
         This function returns the map channel where per-vertex
         velocity data (stored in units/frame) might be found, inside
-        any meshes returned by the RenderTimeInstancing. 
-        
+        any meshes returned by the RenderTimeInstancing.
+
         A value of -1 means the mesh contains no per-vertex velocity data.
 
-        Note: not all meshes are guaranteed to contain velocity data. It is 
+        Note: not all meshes are guaranteed to contain velocity data. It is
         your duty to check that this map channel is initialized on a given
         mesh and that its face count is equal to the mesh's face count.
         If both face counts are equal, you can retrieve vertex velocities
@@ -354,8 +308,25 @@ namespace RenderTimeInstancing
         /* ACCESS TO THE ACTUAL INSTANCES */
 
         /* Get the number of instances of this kind, and the actual instances. */
-        virtual size_t GetNumInstances();
-        virtual const RenderInstance &GetRenderInstance(size_t index);
+        virtual size_t          GetNumInstances();
+        virtual RenderInstance *GetRenderInstance(size_t index);
+
+        // For convenicence - iterator
+        class Iterator;
+        Iterator begin() { return Iterator(this); }
+        Iterator end() { return Iterator(this, GetNumInstances()); }
+        class Iterator {
+        public:
+            Iterator(RenderInstanceSource *item) : m_item(item), m_i(0) {}
+            Iterator(RenderInstanceSource *funko, const size_t val) : m_item(funko), m_i(val) {}
+
+            Iterator&             operator++() { m_i++; return *this; }
+            bool                  operator!=(const Iterator &iterator) { return m_i != iterator.m_i; }
+            const RenderInstance *operator*() { return m_item->GetRenderInstance(m_i); }
+        private:
+            size_t                 m_i;
+            RenderInstanceSource  *m_item;
+        };
     };
 
     class RenderTimeInstancing {
@@ -400,12 +371,29 @@ namespace RenderTimeInstancing
         virtual int TMChannelToInt(TSTR channel) = 0;
 
         /* Getting the actual things TO BE instanced */
-        virtual size_t                      GetNumInstanceSources();
-        virtual const RenderInstanceSource &GetRenderInstanceSource(size_t index);
-    }
+        virtual size_t                 GetNumInstanceSources();
+        virtual RenderInstanceSource  *GetRenderInstanceSource(size_t index);
+
+        // For convenicence - iterator
+        class Iterator;
+        Iterator begin() { return Iterator(this); }
+        Iterator end() { return Iterator(this, GetNumInstanceSources()); }
+        class Iterator {
+        public:
+            Iterator(RenderTimeInstancing *item) : m_item(item), m_i(0) {}
+            Iterator(RenderTimeInstancing *funko, const size_t val) : m_item(funko), m_i(val) {}
+
+            Iterator&             operator++() { m_i++; return *this; }
+            bool                  operator!=(const Iterator &iterator) { return m_i != iterator.m_i; }
+            RenderInstanceSource *operator*() { return m_item->GetRenderInstanceSource(m_i); }
+        private:
+            size_t                 m_i;
+            RenderTimeInstancing  *m_item;
+        };
+    };
 
     inline RenderTimeInstancing* GetRenderTimeInstancing(BaseObject* obj)
     {
         return (RenderTimeInstancing*)obj->GetInterface(RENDERTIME_INSTANCING_INTERFACE);
     }
-    
+}
