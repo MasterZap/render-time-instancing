@@ -22,8 +22,9 @@ OR OTHER DEALINGS IN THE SOFTWARE.
 #pragma once
 
 //headers from Max SDK
-#include "object.h"
-#include "mesh.h"
+#include <object.h>
+#include <mesh.h>
+#include <array.h>
 
 #define RENDERTIME_INSTANCING_INTERFACE Interface_ID(0x442741c3, 0x2e22675c)
 
@@ -135,12 +136,12 @@ namespace RenderTimeInstancing
     {
     public:
         /*
-        This helper function collects instances (particles that	share 
+        This helper function collects instances (instances that	share 
         the same data pointer) and groups them together, along with 
-        any per-particle property overrides. It is a quick way to 
-        collect all particle instances for rendering. The arguments 
+        any per-instance property overrides. It is a quick way to 
+        collect all instance instances for rendering. The arguments 
         'moblurStart' and 'moblurEnd' should be the start and end of the 
-        desired motion blur interval, for proper particle transform retrieval. 
+        desired motion blur interval, for proper instance transform retrieval. 
         Note: this function calls UpdateInstanceData internally for all 
         time values, so UpdateInstanceData does not need to be manually 
         called before calls	to CollectInstances. 
@@ -174,9 +175,9 @@ namespace RenderTimeInstancing
         These functions return custom data values for each
         instance. Values are retreived using channel integers
         */
-        virtual float   GetCustomFloat(int channelInt) = 0;
+        virtual float   GetCustomFloat (int channelInt) = 0;
         virtual Point3  GetCustomVector(int channelInt) = 0;
-        virtual Matrix3 GetCustomTM(int channelInt) = 0;
+        virtual Matrix3 GetCustomTM    (int channelInt) = 0;
 
 
 // ZAP: What is this, do we need this? (Originally GetParticleExportGroups). Took it out for now
@@ -186,21 +187,21 @@ namespace RenderTimeInstancing
         */
 //      virtual unsigned int GetExportGroups() = 0;
 
-        /*ID contains the unique Birth ID of source particles. This value is
-        guaranteed to be unique for each particle in the flow. This value can
-        be negative or zero*/
+        /*ID contains the unique Birth ID of source instances (i.e. Birth ID
+        of a particle, or scattered item). This value should be unique for each 
+        instance in the set. This value can be negative or zero*/
         virtual __int64 GetID();
 
         /*instanceID contains the arbitrary, user-defined instance ID of source
-        particles. Texmaps can make use of this value at rendertime. This value
-        can be negative or zero*/
+        instances. Texmaps can make use of this value at rendertime. This value
+        can be negative or zero. */
         virtual __int64 GetInstanceID();
 
 
 // ZAP: What is this, do we need this? Took it out for now
         /*
-        This function returns per-particle instanceNode. This is a user-defined
-        render-only node which corresponds to each particle. NULL means no
+        This function returns per-instance instanceNode. This is a user-defined
+        render-only node which corresponds to each instance. NULL means no
         node has been assigned.
         */
 //      virtual INode* GetParticleInstanceNode() = 0;
@@ -208,36 +209,31 @@ namespace RenderTimeInstancing
 
         /*
         This function returns per-instance mesh matID overrides.
-        A return value of -1 means no override is set on the particle.
+        A return value of -1 means no override is set on the instance.
         */
         virtual int GetMatID() = 0;
 
         /*
-        This function returns per-particle material (Mtl*) overrides.
-        A return value of NULL means no override is set on the particle and
+        This function returns per-instance material (Mtl*) overrides.
+        A return value of NULL means no override is set on the instance and
         thus the default node material should be used.
         */
-        virtual Mtl* GetParticleMtl() = 0;
+        virtual Mtl* GetMtl() = 0;
 
 // ZAP: What is this, do we need this? (GetParticleSimGroupsByIndex). Took out for now
         /*
-        This function returns per-particle simulation group flags
+        This function returns per-instance simulation group flags
         A return value of 0 means no flags have been set.
         */
 //      virtual unsigned int GetSimGroups() = 0;
 
-        /*
-        This function returns per-particle spin values
-        in per-frame units
-        */
-        virtual Point3 GetParticleSpinPoint3ByIndex(int index) = 0;
 
         /*
-        This function returns per-particle UVW overrides for specific map
+        This function returns per-instance UVW overrides for specific map
         channels.
         The return value is an array which contains a list of overrides
         and the map channel whose vertices they should be assigned to. An
-        empty array means no UVW overrides have been assigned to the particle.
+        empty array means no UVW overrides have been assigned to the instance.
         */
         virtual MaxSDK::Array<InstanceUVWInfo> GetUVWsVec() = 0;
        
@@ -259,13 +255,13 @@ namespace RenderTimeInstancing
 // ZAP: Do we need these?
 //      and doesn't the spin need to be a quaternion to even work??
 // 
-        /*vel is the per-frame particle velocity of the instance. Note: this value
+        /*vel is the per-frame instance velocity of the instance. Note: this value
         is stored for completeness, but should not be used by developers to calculate 
         motion blur. Motion blur should be calculated using the tms tyVector instead.
         */
         virtual Point3 GetVelocity();
 
-        /*spin is the per-frame particle spin of the instance. Note: this value
+        /*spin is the per-frame instance spin of the instance. Note: this value
         is stored for completeness, but should not be used by developers to calculate
         motion blur. Motion blur should be calculated using tm0 and tm1 instead.
         */
