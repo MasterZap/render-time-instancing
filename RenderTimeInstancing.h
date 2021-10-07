@@ -34,6 +34,14 @@ class Mtl;
     The RenderTimeInstancing interface allows you to access instancing information for an object
     at render time, so that a renderer can do efficient instancing of source objects.
 
+    This interface is implemented by an object, and called by a renderer. 
+    
+    NOTE: It is legal for a renderer to iterate these loops from MULTIPLE THREADS. However,
+          the *same* thread should not concurrently access multiple RenderInstance's at the
+          same literal time. This makes it legal for the object plugin to actually reuse
+          the memory returned from GetRenderInstance() to improve performance, as long
+          as that memory block is kept separete PER THREAD.
+
     Do not call GetRenderMesh() for an object that supports this interface. For an object 
     that does IMPLEMENT this interface, GetRenderMesh() should return an aggregate mesh
     of all instances, such that a renderer that does NOT support this interface at least will
