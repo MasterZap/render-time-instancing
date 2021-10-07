@@ -77,7 +77,7 @@ class Mtl;
         int TMChannel1     = instancer->TMChannelToInt(_T("myTMChannel"));
 
         // Instancer acts as a container of sources. Loop over the sources in the instancer
-        for (auto source : instancer)
+        for (auto source : *instancer)
             auto flags = source->GetFlags();
 
             if (flags & DataFlags::mesh)  { ... work with meshes .... } 
@@ -87,7 +87,7 @@ class Mtl;
             void *data = source->GetData();
 
             // A source acts as a container of targets
-            for (auto target : source )
+            for (auto target : *source )
             {
                 float   f1  = target->GetCustomFloat(floatChannel1);
                 Point3  v1  = target->GetCustomVector(vectorChannel1);
@@ -133,13 +133,14 @@ namespace RenderTimeInstancing
 
     class RenderInstance
     {
+    public:
         /*
         These functions return custom data values for each
         instance. Values are retreived using channel integers
         */
-        virtual float   GetCustomFloat(int channelInt) = 0;
+        virtual float   GetCustomFloat (int channelInt) = 0;
         virtual Point3  GetCustomVector(int channelInt) = 0;
-        virtual Matrix3 GetCustomTM(int channelInt) = 0;
+        virtual Matrix3 GetCustomTM    (int channelInt) = 0;
 
 
         // ZAP: What is this, do we need this? (Originally GetParticleExportGroups). Took it out for now
@@ -152,12 +153,12 @@ namespace RenderTimeInstancing
                         /*ID contains the unique Birth ID of source instances (i.e. Birth ID
                         of a particle, or scattered item). This value should be unique for each
                         instance in the set. This value can be negative or zero*/
-        virtual __int64 GetID();
+        virtual __int64 GetID() = 0; 
 
         /*instanceID contains the arbitrary, user-defined instance ID of source
         instances. Texmaps can make use of this value at rendertime. This value
         can be negative or zero. */
-        virtual __int64 GetInstanceID();
+        virtual __int64 GetInstanceID() = 0;
 
 
         // ZAP: What is this, do we need this? Took it out for now
@@ -221,17 +222,18 @@ namespace RenderTimeInstancing
                 is stored for completeness, but should not be used by developers to calculate
                 motion blur. Motion blur should be calculated using the tms tyVector instead.
                 */
-        virtual Point3 GetVelocity();
+        virtual Point3 GetVelocity() = 0;
 
         /*spin is the per-frame instance spin of the instance. Note: this value
         is stored for completeness, but should not be used by developers to calculate
         motion blur. Motion blur should be calculated using tm0 and tm1 instead.
         */
-        virtual Quat GetSpin();
+        virtual Quat GetSpin() = 0;
     };
 
     class RenderInstanceSource
     {
+    public:
         /* INFO ABOUT THE ACTUAL THING BEING INSTANCED */
 
         /*these flags are used to define the type of data stored
@@ -239,7 +241,7 @@ namespace RenderTimeInstancing
         like whether the plugin must delete the pointer once it's
         finished using it.
         */
-        virtual DataFlags GetFlags();
+        virtual DataFlags GetFlags() = 0;
 
         /*the data pointer contains the relevant class that should be
         instanced. Currently, it is either a Mesh* or an INode*, and
@@ -260,7 +262,7 @@ namespace RenderTimeInstancing
         after use. Be sure to cast to relevant class before deletion
         so the proper destructor is called.
         */
-        virtual void *GetData();
+        virtual void *GetData() = 0;
 
         /*
         This function returns the map channel where per-vertex
@@ -311,13 +313,13 @@ namespace RenderTimeInstancing
 
         */
 
-        virtual int GetVelocityMapChannel();
+        virtual int GetVelocityMapChannel() = 0;
 
         /* ACCESS TO THE ACTUAL INSTANCES */
 
         /* Get the number of instances of this kind, and the actual instances. */
-        virtual size_t          GetNumInstances();
-        virtual RenderInstance *GetRenderInstance(size_t index);
+        virtual size_t          GetNumInstances() = 0;
+        virtual RenderInstance *GetRenderInstance(size_t index) = 0;
 
         // For convenicence - iterator
         class Iterator;
@@ -328,9 +330,9 @@ namespace RenderTimeInstancing
             Iterator(RenderInstanceSource *item) : m_item(item), m_i(0) {}
             Iterator(RenderInstanceSource *item, const size_t val) : m_item(item), m_i(val) {}
 
-            Iterator&             operator++() { m_i++; return *this; }
-            bool                  operator!=(const Iterator &iterator) { return m_i != iterator.m_i; }
-            const RenderInstance *operator*() { return m_item->GetRenderInstance(m_i); }
+            Iterator&       operator++() { m_i++; return *this; }
+            bool            operator!=(const Iterator &iterator) { return m_i != iterator.m_i; }
+            RenderInstance *operator*() { return m_item->GetRenderInstance(m_i); }
         private:
             size_t                 m_i;
             RenderInstanceSource  *m_item;
@@ -367,20 +369,20 @@ namespace RenderTimeInstancing
         These functions return a list of active channel names for
         each data type
         */
-        virtual MaxSDK::Array<TSTR> GetFloatChannelNamesVec() = 0;
+        virtual MaxSDK::Array<TSTR> GetFloatChannelNamesVec()  = 0;
         virtual MaxSDK::Array<TSTR> GetVectorChannelNamesVec() = 0;
-        virtual MaxSDK::Array<TSTR> GetTMChannelNamesVec() = 0;
+        virtual MaxSDK::Array<TSTR> GetTMChannelNamesVec()     = 0;
 
         /*
         These functions convert channel strings into channel integers
         */
-        virtual int FloatChannelToInt(TSTR channel) = 0;
+        virtual int FloatChannelToInt (TSTR channel) = 0;
         virtual int VectorChannelToInt(TSTR channel) = 0;
-        virtual int TMChannelToInt(TSTR channel) = 0;
+        virtual int TMChannelToInt    (TSTR channel) = 0;
 
         /* Getting the actual things TO BE instanced */
-        virtual size_t                 GetNumInstanceSources();
-        virtual RenderInstanceSource  *GetRenderInstanceSource(size_t index);
+        virtual size_t                 GetNumInstanceSources() = 0;
+        virtual RenderInstanceSource  *GetRenderInstanceSource(size_t index) = 0;
 
         // For convenicence - iterator
         class Iterator;
