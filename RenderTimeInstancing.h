@@ -144,6 +144,8 @@ namespace MaxSDK
                 This is a somewhat arbitrary value, but by having renderers identify
                 themselves during a query, the object can internally determine if any
                 renderer-specific edge-cases need to be processed.
+
+            \see Struct MotionBlurInfo
             */
             virtual void UpdateInstanceData(TimeValue t, Interval &valid, MotionBlurInfo &mbinfo, TSTR plugin) = 0;
 
@@ -232,7 +234,7 @@ namespace MaxSDK
         */
         struct MotionBlurInfo {
             /*! \brief Defines what kind of motion is desired and used
-            \see RenderTimeInstancing::MBFlags */
+            \see Enum MBFlags */
             MBFlags   flags;            
             /*! \brief Defines the open and closing time of the shutter.
             If set to NEVER, motion blur is not used. */
@@ -348,6 +350,11 @@ namespace MaxSDK
             Exactly what is returned can be deduced from the MotionBlurInfo passed to
             RenderTimeInstancing::UpdateInstanceData()
 
+            Any instance motion should be computed from <em>either</em> multiple returned
+            tranformations from GetTMs() <em>or</em> by using only the first transform 
+            and applying the GetVelocity() and GetSpin() values on top of that. 
+            Both methods should never be used at the same time.
+
             \note Any passed vertex velocity is in <em>addition</em> to this instance motion
             */
             ///@{
@@ -357,9 +364,11 @@ namespace MaxSDK
             blur interval (the interval specified by the arguments passed to
             CollectInstances), in temporal order. 
             
-            * If the vector returns has a single element it represents a static instance. 
-            * If it has two elements it contains the transforms at the start and end of the interval. 
-            * If it has three elements ut contains the transforms at the start, center, and end of
+            - If the vector returns has a single element it represents a either a static instance, or
+              it means the motion data comes from GetVelocity() and GetSpin(), depending on the return
+              values put in the MotionBlurInfo struct sent to UpdateInstanceInfo() function.
+            - If it has two elements it contains the transforms at the start and end of the interval. 
+            - If it has three elements ut contains the transforms at the start, center, and end of
               the interval, etc. 
 
             A vector with more than two elements allows a renderer to compute more accurate multi-sample motion blur.
@@ -439,7 +448,7 @@ namespace MaxSDK
 
             std::vector<Point3> vertexVelocities(mesh.numVerts, Point3(0,0,0));
 
-            int velMapChan = RenderTimeInstancing->GetMeshVelocityMapChannel();
+            int velMapChan = renderInstanceSource->GetMeshVelocityMapChannel();
             if (velMapChan >= 0 && mesh.mapSupport(velMapChan))
             {
                 MeshMap &map = mesh.maps[velMapChan];
