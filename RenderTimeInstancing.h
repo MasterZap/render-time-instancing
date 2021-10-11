@@ -221,13 +221,6 @@ namespace MaxSDK
             ///@}
         };
 
-        /*! \brief Defines MotionBlurInfo::flags means */
-        enum MBFlags : signed int
-        {
-            mb_none          = 0,       //!< \brief No flags (default)
-            mb_velocityspin  = 1 << 0,  //!< \brief The RenderInstanceTarget::GetVelocity() and RenderInstanceTarget::GetSpin() will contain data
-        };
-
         /*! \brief Motion Blur information struct.
 
         This communicates information about shutter intervals and motion blur behavior between the object and the renderer.
@@ -236,6 +229,12 @@ namespace MaxSDK
         to communicate back to it. 
         */
         struct MotionBlurInfo {
+            /*! \brief Defines MotionBlurInfo::flags means */
+            enum MBFlags : signed int
+            {
+                mb_none = 0,       //!< \brief No flags (default)
+                mb_velocityspin = 1 << 0,  //!< \brief The RenderInstanceTarget::GetVelocity() and RenderInstanceTarget::GetSpin() will contain data
+            };
             /*! \brief Defines information about what motion blur info is available for a source
             \see Enum MBFlags */
             MBFlags   flags;            
