@@ -219,10 +219,8 @@ namespace MaxSDK
         /*! \brief Defines MotionBlurInfo::flags means */
         enum MBFlags : signed int
         {
-            transforms    = 1 << 0,  //!< \brief Motion blur is communicated via RenderInstanceTarget::GetTM() returning multiple matrices
-            velocities    = 1 << 1,  //!< \brief Motion blur is communicated via RenderInstanceTarget::GetVelocity() and RenderInstanceTarget::GetSpin()
-            tm_preferred  = 1 << 2,  //!< \brief The transformations hold the most "true" data. If velocities are returned, they are computed from them
-            vel_preferred = 1 << 3,  //!< \brief The velocities hold the most "true" data. If TM's are returned, they are computed from them
+            mb_none          = 0,       //!< \brief No flags (default)
+            mb_velocityspin  = 1 << 0,  //!< \brief The RenderInstanceTarget::GetVelocity() and RenderInstanceTarget::GetSpin() will contain data
         };
 
         /*! \brief Motion Blur information struct.
@@ -233,38 +231,16 @@ namespace MaxSDK
         to communicate back to it. 
         */
         struct MotionBlurInfo {
-            /*! \brief Defines what kind of motion is desired and used
+            /*! \brief Defines information about what motion blur info is available for a source
             \see Enum MBFlags */
             MBFlags   flags;            
             /*! \brief Defines the open and closing time of the shutter.
             If set to NEVER, motion blur is not used. */
             Interval  shutterInterval;  
-            /*! \brief The desired number of TMs returned by GetTMs(), or -1 for variable.
 
-            Here, the renderer can request a desired number of tranformations returned by GetTM(), if
-            the renderer only supports to have a fixed set. 
-            
-            When this is passed into the RenterTimeInstancing::UpdateInstanceData() function from the renderer, the meaning is as follows
-
-            - If this value is -1 (the default) it means "I don't care", and there can be a variable number of TM's returned.
-            - If this value is 0, it means the renderer is not rendering with motion blur and will not care
-            - If this value is 1, it indicates the renderer expects a single tranform, and any motion to be handed over in GetVelocity() and GetSpin()
-            - A value of 2 or greater means that the renderer expects exactly that many TMs returned from GetTMs(), no more, no less.
-
-            Upon returning from the RenterTimeInstancing::UpdateInstanceData() call, the object can fill in the response value
-
-            - If this value is -1 it means there might be a variable number of TM's returned from GetTMs().
-            - If this value is 0, it means the instances are not moving at all, no motion blur needs to be calculated due to instance motion (there might still be vertex motion though!)
-            - If this value is 1, it means only a single TM is returned. Any motion will be in GetVelocity() and GetSpin() only.
-            - A value of 2 or greater means that many TMs will always be returned, no more, no less.
-
-            */
-            int       numberOfTMs;       
-
-            MotionBlurInfo(Interval shutter = NEVER, MBFlags f = MBFlags::tm_preferred, int tms = -1) { 
+            MotionBlurInfo(Interval shutter = NEVER, MBFlags f = MBFlags::mb_none) { 
                 shutterInterval = shutter;
                 flags           = f;
-                numberOfTMs     = tms;
             };
         };
 
@@ -274,12 +250,12 @@ namespace MaxSDK
         /*! \brief Defines what GetData() returns and how to treat it */
         enum DataFlags : signed int
         {
-            none  = 0,
+            df_none  = 0,
 
-            mesh  = 1 << 0, //!< \brief RenderInstanceSource::GetData() is Mesh*
-            inode = 1 << 1, //!< \brief RenderInstanceSource::GetData() is INode*
+            df_mesh  = 1 << 0, //!< \brief RenderInstanceSource::GetData() is Mesh*
+            df_inode = 1 << 1, //!< \brief RenderInstanceSource::GetData() is INode*
 
-            pluginMustDelete = 1 << 31 //!< \brief Set if the renderer is expected to delete the data pointer after use
+            df_pluginMustDelete = 1 << 31 //!< \brief Set if the renderer is expected to delete the data pointer after use
         };
 
         /*! \brief Information about a given instance of a RenderInstanceSource */
@@ -361,29 +337,37 @@ namespace MaxSDK
             /*! \brief Get the transformation matrix (or matrices)
             
             GetTMs() returns the instance's transform(s) spread evenly over the motion
-            blur interval (the interval specified by the arguments passed to
-            CollectInstances), in temporal order. 
+            blur interval (the interval specified by the MotionBlurInfo argument passed to
+            UpdateInstanceData function), in temporal order. 
             
-            - If the vector returns has a single element it represents a either a static instance, or
-              it means the motion data comes from GetVelocity() and GetSpin(), depending on the return
-              values put in the MotionBlurInfo struct sent to UpdateInstanceInfo() function.
+            - If the vector returns has a single element it represents a static instance that is not moving.
             - If it has two elements it contains the transforms at the start and end of the interval. 
             - If it has three elements ut contains the transforms at the start, center, and end of
               the interval, etc. 
 
             A vector with more than two elements allows a renderer to compute more accurate multi-sample motion blur.
             */
-            virtual MaxSDK::Array<Matrix3> GetTMs();
+            virtual MaxSDK::Array<Matrix3> GetTMs() = 0;
+
+            /*! \brief Get the transformation matrix at shutter open only
+
+            GetTM() returns the instance's transform. This can be more efficient if the object is actually
+            internally using a single transform and a velocity and spin, saving it the effort of computing
+            the additional matrices. If a renderer does not plan to use multiple matrices, and compute motion
+            blur using GetVelocity() and GetSpin(), it can call this function instead of using GetTMs()[0],
+            which while equivalent, might be slightly less efficient.
+            */
+            virtual Matrix3 GetTM() = 0;
 
             /*! \brief Get instance veolocity.
             
-            Returns the instance velocity of the instance in world space, measured in units per frame.
+            Returns the instance velocity of the instance in world space, measured in units per tick.
             */
             virtual Point3 GetVelocity() = 0;
 
             /*! \brief Get instance rotational velocity 
             
-            Returns the spin is the per-frame instance spin of the instance, as an AngAxis in units per frame.
+            Returns the spin is the per-frame instance spin of the instance, as an AngAxis in units per tick.
             */
             virtual AngAxis GetSpin() = 0;
             ///@}
