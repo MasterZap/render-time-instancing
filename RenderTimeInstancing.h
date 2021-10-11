@@ -87,15 +87,17 @@ namespace MaxSDK
                 for (auto source : *instancer)
                     auto flags = source->GetFlags();
 
-                    if (flags & DataFlags::mesh)  { ... work with meshes .... }
-                    if (flags & DataFlags::inode) { ... work with iNode .... }
-
                     // Get what to be instanced
                     void *data = source->GetData();
+
+                    if (flags & DataFlags::mesh)  { ... the pointer is a mesh .... }
+                    if (flags & DataFlags::inode) { ... the data pointer is an iNode .... }
 
                     // A source acts as a container of targets
                     for (auto target : *source )
                     {
+                        // Deal with known data. Will return defaults if missing.
+                        // It is the responsibility of the caller to not call the wrong type
                         float   f1  = target->GetCustomFloat(floatChannel1);
                         Point3  v1  = target->GetCustomVector(vectorChannel1);
                         Point3  v2  = target->GetCustomVector(vectorChannel2);
@@ -103,8 +105,25 @@ namespace MaxSDK
 
                         // ... actually instance the "source" object using info in "target"
 
-                        ... renderer specific magic goes here....
+                        // If the renderer preffers to work with velocities and spins
+                        // it should check if the object is providing such data.
+                        // This case is not necessary if the renderer only cares about
+                        // the array of transforms.
+                        if (mblur.flags & MBFlags::mb_velocityspin)
+                        {
+                            Matrix3 tm = target->GetTM();
+                            Vector3    = target->GetVelocity();
+                            AngAxis    = target->GetSpin();
 
+                            ... instance the obeject accordingly ...
+                        }
+                        else // There is no velocity/spin data, we use transforms
+                        {
+                            // Gets the array of transforms over the shutter interval
+                            auto tms   = target->GetTms();
+
+                            ... instance the obeject accordingly ...
+                        }
                     }
 
                     if (flags & DataFlags::mesh &&  flags DataFlags::pluginMustDelete)
@@ -351,9 +370,14 @@ namespace MaxSDK
             RenderTimeInstancing::UpdateInstanceData()
 
             Any instance motion should be computed from <em>either</em> multiple returned
-            tranformations from GetTMs() <em>or</em> by using only the first transform 
-            and applying the GetVelocity() and GetSpin() values on top of that. 
-            Both methods should never be used at the same time.
+            tranformations from GetTMs() <em>or</em> by using only one transform from
+            GetTM() and applying the GetVelocity() and GetSpin() values on top of that. 
+            Both methods should never be used at the same time. The method using velocity
+            and spin should only be used if the object signals that it has this information
+            using the MBData::mb_velocityspin flag. I.e. transformation matrices are
+            always there but may or may not be computed <em>from</em> velocity and spin
+            data. The velocity and spin is only guaranteed to be there if the flag in 
+            question is set.
 
             \note Any passed vertex velocity is in <em>addition</em> to this instance motion
             */
