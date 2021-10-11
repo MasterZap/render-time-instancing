@@ -35,6 +35,7 @@ namespace MaxSDK
     {
         //! \brief A Channel ID. An opaque integer token representing the channel. Used to actully retreive the data.
         typedef int ChannelID;
+        enum        TypeID;
 
         class  RenderInstanceSource;
         struct MotionBlurInfo;
@@ -78,10 +79,10 @@ namespace MaxSDK
 
                 // Get integers for known channel names
 
-                ChannelID floatChannel1  = instancer->GetChannelID(_T("myFloatChannel"));
-                ChannelID VectorChannel1 = instancer->GetChannelID(_T("myVectorChannel1"));
-                ChannelID VectorChannel2 = instancer->GetChannelID(_T("myVectorChannel2"));
-                ChannelID TMChannel1     = instancer->GetChannelID(_T("myTMChannel"));
+                ChannelID floatChannel1  = instancer->GetChannelID(_T("myFloatChannel"),   typeFloat);
+                ChannelID VectorChannel1 = instancer->GetChannelID(_T("myVectorChannel1"), typeVector);
+                ChannelID VectorChannel2 = instancer->GetChannelID(_T("myVectorChannel2"), typeVector);
+                ChannelID TMChannel1     = instancer->GetChannelID(_T("myTMChannel"),      typeTM);
 
                 // Instancer acts as a container of sources. Loop over the sources in the instancer
                 for (auto source : *instancer)
@@ -189,8 +190,9 @@ namespace MaxSDK
             ///@{
             //! \brief Return a list of data channels
             virtual MaxSDK::Array<ChannelInfo> GetChannels() = 0;
-            //! \brief Utility function to get the channel ID of a known channel. Returns -1 if the channel does not exist.
-            virtual ChannelID GetChannelID(TSTR name) = 0;
+            //! \brief Utility function to get the channel ID of a known channel. 
+            //         Returns -1 if a channel of that name and type does not exist.
+            virtual ChannelID GetChannelID(TSTR name, TypeID type) = 0;
             ///@}
  
             /*! \name Getting the actual things to be instanced (the sources) */
@@ -255,12 +257,12 @@ namespace MaxSDK
             TSTR name;            //!< \brief The name of the data channel
             //! \brief Type of the channel
             enum TypeID : int {
-                typeCustom = 0,  //!< \brief Custom data block of specified size
-                typeInt = 1,     //!< \brief Data of type int
-                typeFloat = 2,   //!< \brief Data of type float
-                typeVector = 3,  //!< \brief Data of type Point3
-                typeColor = 4,   //!< \brief Data of type Color. Colors and vectors may hold semantic difference to some renderers.
-                typeTM = 5       //!< \brief Data of type Matrix3
+                typeCustom = 0,   //!< \brief Custom data block of specified size
+                typeInt    = 1,   //!< \brief Data of type int
+                typeFloat  = 2,   //!< \brief Data of type float
+                typeVector = 3,   //!< \brief Data of type Point3
+                typeColor  = 4,   //!< \brief Data of type Color. Colors and vectors may hold semantic difference to some renderers.
+                typeTM     = 5    //!< \brief Data of type Matrix3
             };
             TypeID    type;       //!< \brief The type of channel
             ChannelID channelID;  //!< \brief The channels ID. An opaque integer token representing the channel. Used to actully retreive the data.
