@@ -292,31 +292,15 @@ namespace MaxSDK
             */
             ///@{
             //! \brief Return a raw custom data pointer. If the ID is invalid, returns nullptr.
-            virtual void   *GetCustomData  (ChannelID channel);  
-            //! \brief Return a float value
-            virtual float   GetCustomFloat (ChannelID channel)   
-            {
-                auto p = GetCustomData(channel);
-                return p ? (*((float *)p)) : 0.0f;
-            }
-            //! \brief Return a vector value
-            virtual Point3  GetCustomVector(ChannelID channel)   
-            {
-                auto p = GetCustomData(channel);
-                return p ? (*((Point3 *)p)) : Point3(0.0f,0.0f,0.0f);
-            }
-            //! \brief Return a color value
-            virtual Color   GetCustomColor(ChannelID channel)   
-            {
-                auto p = GetCustomData(channel);
-                return p ? (*((Color *)p)) : Color(0.0f,0.0f,0.0f);
-            }
-            //! \brief Return a TM value
-            virtual Matrix3 GetCustomTM    (ChannelID channel)   
-            {
-                auto p = GetCustomData(channel);
-                return p ? (*((Matrix3 *)p)) : Matrix3();
-            }
+            virtual void   *GetCustomData  (ChannelID channel) = 0;  
+            //! \brief Return a float value. If the ID is invalid, returns 0.0
+            virtual float   GetCustomFloat (ChannelID channel) = 0;
+            //! \brief Return a vector value. If the ID is invalid, returns Point3(0.0,0.0,0.0)
+            virtual Point3  GetCustomVector(ChannelID channel) = 0;
+            //! \brief Return a color value. If the ID is invalid, returns Color(0.0,0.0,0.0)
+            virtual Color   GetCustomColor (ChannelID channel) = 0;
+            //! \brief Return a TM value. If the ID is invalid, returns Matrix()
+            virtual Matrix3 GetCustomTM    (ChannelID channel) = 0;
             ///@}
 
             /*! \name Instance Standard Data Access
