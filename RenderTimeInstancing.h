@@ -33,8 +33,12 @@ namespace MaxSDK
 {
     namespace RenderTimeInstancing
     {
+        //! \brief A Channel ID. An opaque integer token representing the channel. Used to actully retreive the data.
+        typedef int ChannelID;
+
         class  RenderInstanceSource;
         struct MotionBlurInfo;
+        struct ChannelInfo;
 
         /*! \brief The RenderTimeInstancing interface allows you to access instancing information for an object
                   render time, so that a renderer can do efficient instancing of one or more source objects 
@@ -157,37 +161,16 @@ namespace MaxSDK
             virtual void ReleaseInstanceData() = 0;
             ///@}
 
-            /*! \name Getting Data Channel Names
-                Retreives the names of data channels for each supported type  */
+            /*! \name Getting Data Channels 
+                These are functions to obtain the  list of datachannels on the object. Known channels
+                can also be requested by name. */
             ///@{
-            //! \brief Return a list of active channel names for float channels
-            virtual MaxSDK::Array<TSTR> GetFloatChannelNames() = 0;
-            //! \brief Return a list of active channel names for vector channels
-            virtual MaxSDK::Array<TSTR> GetVectorChannelNames() = 0;
-            //! \brief Return a list of active channel names for TM channels
-            virtual MaxSDK::Array<TSTR> GetTMChannelNames() = 0;
+            //! \brief Return a list of data channels
+            virtual MaxSDK::Array<ChannelInfo> GetChannels() = 0;
+            //! \brief Utility function to get the channel ID of a known channel. Returns -1 if the channel does not exist.
+            virtual ChannelID GetChannelID(TSTR name) = 0;
             ///@}
-
-            /*! \name Data Channel Integer Access
-                These functions convert channel strings into channel integers.
-                Channel strings are arbitrary and defined by the object.
-
-                Safety checks should be in place to ensure attempts to access
-                a missing channel will not cause any errors.
-                A default value for missing channels will simply
-                be returned instead (0.0f, Point3::Origin, Matrix3(1))
-
-                \note Channel names are case-sensitive
-            */
-            ///@{
-            /*! \brief Get integer index for a float channel name */
-            virtual int FloatChannelToInt(TSTR channel) = 0;
-            /*! \brief Get integer index for a vector channel name */
-            virtual int VectorChannelToInt(TSTR channel) = 0;
-            /*! \brief Get integer index for a TM channel name */
-            virtual int TMChannelToInt(TSTR channel) = 0;
-            ///@}
-
+ 
             /*! \name Getting the actual things to be instanced (the sources) */
             ///@{
             /*! \brief Get number of sources */
@@ -247,6 +230,22 @@ namespace MaxSDK
         /*! \brief UVW channel override data */
         struct InstanceUVWInfo { int channel; UVVert value; };
 
+        struct ChannelInfo {
+            TSTR name;            //!< \brief The name of the data channel
+            //! \brief Type of the channel
+            enum TypeID : int {
+                typeCustom = 0,  //!< \brief Custom data block of specified size
+                typeInt = 1,     //!< \brief Data of type int
+                typeFloat = 2,   //!< \brief Data of type float
+                typeVector = 3,  //!< \brief Data of type Point3
+                typeColor = 4,   //!< \brief Data of type Color. Colors and vectors may hold semantic difference to some renderers.
+                typeTM = 5       //!< \brief Data of type Matrix3
+            };
+            TypeID    type;       //!< \brief The type of channel
+            ChannelID channelID;  //!< \brief The channels ID. An opaque integer token representing the channel. Used to actully retreive the data.
+            int size;             //!< \brief For typeCustom only - the size of the data, in case the renderer needs to make a copy of it.
+        };
+
         /*! \brief Defines what GetData() returns and how to treat it */
         enum DataFlags : signed int
         {
@@ -266,14 +265,31 @@ namespace MaxSDK
             /*! \name Instance Custom Data Access
             
             These functions return custom data values for each
-            instance. Values are retreived using channel integers
+            instance. Values are retreived using ChannelID's 
             */
             ///@{
-            virtual float   GetCustomFloat (int channelInt) = 0;  //!< \brief Return a float value
-            virtual Point3  GetCustomVector(int channelInt) = 0;  //!< \brief Return a vector value
-            virtual Matrix3 GetCustomTM    (int channelInt) = 0;  //!< \brief Return a TM value
+            virtual void   *GetCustomData(ChannelID channel);    //!< \brief Return a raw custom data pointer
+            virtual float   GetCustomFloat (ChannelID channel)   //!< \brief Return a float value
+            {
+                auto p = GetCustomData(channel);
+                return p ? (*((float *)p)) : 0.0f;
+            }
+            virtual Point3  GetCustomVector(ChannelID channel)   //!< \brief Return a vector value
+            {
+                auto p = GetCustomData(channel);
+                return p ? (*((Point3 *)p)) : Point3(0.0f,0.0f,0.0f);
+            }
+            virtual Color   GetCustomColor(ChannelID channel)   //!< \brief Return a color value
+            {
+                auto p = GetCustomData(channel);
+                return p ? (*((Color *)p)) : Color(0.0f,0.0f,0.0f);
+            }
+            virtual Matrix3 GetCustomTM    (ChannelID channel)   //!< \brief Return a TM value
+            {
+                auto p = GetCustomData(channel);
+                return p ? (*((Matrix3 *)p)) : Matrix3();
+            }
             ///@}
-
 
             /*! \name Instance Standard Data Access
 
