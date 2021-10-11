@@ -56,10 +56,8 @@ namespace MaxSDK
             render <em>something</em>.
 
             An instance may have custom data channels. The data channel names used by an instancer can be retreived
-            with the functions GetFloatChannelNames(), GetVectorChannelNames() or GetTMChannelNames().
-
-            Channel names are then mapped to integer tokens using FloatChannelToInt(), VectorChannelToInt() and
-            TMChannelToInt(). The actual values for each instance are then retreived using these integer tokens.
+            with the functions GetChannels(). Each channel has a name, a type, and a ChannelID, which is used to
+            retreive the actual values for each instance using the GetXXXX() functions.
 
             Usage example:
             \code
@@ -76,14 +74,14 @@ namespace MaxSDK
                 // and object responds with what it actually can accomodate
                 MotionBlurInfo mblur(Interval(shutterOpen, shutterClose));
 
-                instancer->UpdateInstanceData(t, valid, mblur, _T("myPlugin"));
+                instancer->UpdateInstanceData(t, valid, mblur, view, _T("myPlugin"));
 
                 // Get integers for known channel names
 
-                int floatChannel1  = instancer->FloatChannelToInt(_T("myFloatChannel"));
-                int VectorChannel1 = instancer->VectorChannelToInt(_T("myVectorChannel1"));
-                int VectorChannel2 = instancer->VectorChannelToInt(_T("myVectorChannel2"));
-                int TMChannel1     = instancer->TMChannelToInt(_T("myTMChannel"));
+                ChannelID floatChannel1  = instancer->GetChannelID(_T("myFloatChannel"));
+                ChannelID VectorChannel1 = instancer->GetChannelID(_T("myVectorChannel1"));
+                ChannelID VectorChannel2 = instancer->GetChannelID(_T("myVectorChannel2"));
+                ChannelID TMChannel1     = instancer->GetChannelID(_T("myTMChannel"));
 
                 // Instancer acts as a container of sources. Loop over the sources in the instancer
                 for (auto source : *instancer)
@@ -138,8 +136,13 @@ namespace MaxSDK
                          or changing at all, and could in principle be retained over multiple frames.
 
             @param mbinfo 
-                accepts an initialized MotionBlurInfo, which upon
-                return will contain info on how the motion data is returned.
+                An initialized MotionBlurInfo, which upon return will contain info on how the 
+                motion data is returned. If the object will return values for velocity and spin,
+                it should set the mb_velocityspin flag. 
+
+            @param view
+                The view. This allows the object to do level-of-detail computation or do
+                camera frustum culling.
 
             @param plugin
                 The plugin argument of this function takes the name of the plugin
@@ -151,7 +154,7 @@ namespace MaxSDK
 
             \see Struct MotionBlurInfo
             */
-            virtual void UpdateInstanceData(TimeValue t, Interval &valid, MotionBlurInfo &mbinfo, TSTR plugin) = 0;
+            virtual void UpdateInstanceData(TimeValue t, Interval &valid, MotionBlurInfo &mbinfo, View &view, TSTR plugin) = 0;
 
             /*! \brief Release the instancing data.
 
@@ -183,7 +186,7 @@ namespace MaxSDK
             //! \brief Retreive the begin() iterator. Allows using a for (auto x : y) loop
             Iterator begin() { return Iterator(this); }
             //! \brief Retreive the end() iterator
-            Iterator end() { return Iterator(this, GetNumInstanceSources()); }
+            Iterator end()   { return Iterator(this, GetNumInstanceSources()); }
             class Iterator {
             public:
                 Iterator(RenderTimeInstancing *item) : m_item(item), m_i(0) {}
@@ -268,23 +271,28 @@ namespace MaxSDK
             instance. Values are retreived using ChannelID's 
             */
             ///@{
-            virtual void   *GetCustomData(ChannelID channel);    //!< \brief Return a raw custom data pointer
-            virtual float   GetCustomFloat (ChannelID channel)   //!< \brief Return a float value
+            //! \brief Return a raw custom data pointer. If the ID is invalid, returns nullptr.
+            virtual void   *GetCustomData  (ChannelID channel);  
+            //! \brief Return a float value
+            virtual float   GetCustomFloat (ChannelID channel)   
             {
                 auto p = GetCustomData(channel);
                 return p ? (*((float *)p)) : 0.0f;
             }
-            virtual Point3  GetCustomVector(ChannelID channel)   //!< \brief Return a vector value
+            //! \brief Return a vector value
+            virtual Point3  GetCustomVector(ChannelID channel)   
             {
                 auto p = GetCustomData(channel);
                 return p ? (*((Point3 *)p)) : Point3(0.0f,0.0f,0.0f);
             }
-            virtual Color   GetCustomColor(ChannelID channel)   //!< \brief Return a color value
+            //! \brief Return a color value
+            virtual Color   GetCustomColor(ChannelID channel)   
             {
                 auto p = GetCustomData(channel);
                 return p ? (*((Color *)p)) : Color(0.0f,0.0f,0.0f);
             }
-            virtual Matrix3 GetCustomTM    (ChannelID channel)   //!< \brief Return a TM value
+            //! \brief Return a TM value
+            virtual Matrix3 GetCustomTM    (ChannelID channel)   
             {
                 auto p = GetCustomData(channel);
                 return p ? (*((Matrix3 *)p)) : Matrix3();
@@ -486,7 +494,7 @@ namespace MaxSDK
             //! \brief Retreive the begin() iterator. Allows using a for (auto x : y) loop
             Iterator begin() { return Iterator(this); }
             //! \brief Retreive the end() iterator. 
-            Iterator end() { return Iterator(this, GetNumInstanceTargets()); }
+            Iterator end()   { return Iterator(this, GetNumInstanceTargets()); }
             class Iterator {
             public:
                 Iterator(RenderInstanceSource *item) : m_item(item), m_i(0) {}
