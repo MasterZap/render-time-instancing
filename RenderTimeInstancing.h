@@ -250,8 +250,20 @@ namespace MaxSDK
             };
         };
 
-        /*! \brief UVW channel override data */
-        struct InstanceUVWInfo { int channel; UVVert value; };
+        /*! \brief UVW channel override data. This will override all the UV coordinates of given map channel on a mesh with a set value. */
+        struct InstanceUVWInfo { 
+            int channel;    /*!< \brief The map channel to override */
+            UVVert value;   /*!< \brief The UVW value to override it with */
+        };
+
+        /*! \brief Material ID ovverrides. Allows mapping an existing material ID to another on an instance. 
+                   If srcid == -1 it will override all existing material ID:s */
+        struct InstanceMatIDInfo { 
+            /*! \brief The source material ID to translate. If -1, applies to all material ID:s on the mesh. */
+            int srcID; 
+            /*! \brief The destination material ID to translate it to. */
+            int destID; 
+        };
 
         struct ChannelInfo {
             TSTR name;            //!< \brief The name of the data channel
@@ -288,7 +300,7 @@ namespace MaxSDK
             /*! \name Instance Custom Data Access
             
             These functions return custom data values for each
-            instance. Values are retreived using ChannelID's 
+            instance. Values are retreived using ChannelID:s 
             */
             ///@{
             //! \brief Return a raw custom data pointer. If the ID is invalid, returns nullptr.
@@ -322,13 +334,6 @@ namespace MaxSDK
                 can be negative or zero. */
             virtual __int64 GetInstanceID() = 0;
 
-            /*! \brief Get material ID override.
-
-            This function returns per-instance mesh matID overrides.
-            A return value of -1 means no override is set on the instance.
-            */
-            virtual int GetMatID() = 0;
-
             /*! \brief Get material override.
 
             This function returns per-instance material (Mtl*) overrides.
@@ -336,6 +341,18 @@ namespace MaxSDK
             thus the default node material should be used.
             */
             virtual Mtl* GetMtl() = 0;
+
+            /*! \brief Get material ID overrides.
+
+            This function returns per-instance mesh material ID overrides as an array.
+
+            An empty array is returned means no overrides have been assigned to the instance.
+
+            A non-empty array is a list of material ID:s (srcID) to be changed to 
+            a the matching destination ID:s (dstID). If srcID == -1, it means <em>all</em>
+            material ID:s should be changed to the dstID.
+            */
+            virtual MaxSDK::Array<InstanceMatIDInfo>  GetMatIDs() = 0;
 
             /*! \brief Get per-instance UVW channel overrides
 
